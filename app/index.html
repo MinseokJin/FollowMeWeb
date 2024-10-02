@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0">
+        <script type="text/javascript" src="../fixed_info.js"></script>
+        <script type="text/javascript" src="../connection.js"></script>
+        <script type="text/javascript" src="../paho-mqtt-min.js"></script>
+        <script type="text/javascript" src="../client_dne_lib.js"></script>
+        <title>Application Folder</title>
+        <script>
+            var defa = false;
+            var default_title = "Application Folder";
+            function load(){
+                document.title = default_title;
+                loadCookieArea();
+                var opt = document.createElement("option");
+                opt.value = "auto:" + type_and_serial;
+                opt.textContent = "auto:" + type_and_serial;
+                document.getElementById("select").appendChild(opt);
+            }
+            function loadCookieArea(){
+                loadCookie();
+                if(websocket_host != null && websocket_port != null && websocket_username != null && websocket_password != null){
+                    document.getElementById("address").value = websocket_host;
+                    document.getElementById("port").value = websocket_port;
+                    document.getElementById("username").value = websocket_username;
+                    document.getElementById("password").value = websocket_password;
+                }else{
+                    document.getElementById("address").value = "Need Enable Cookie";
+                    document.getElementById("port").value = "Need Enable Cookie";
+                    document.getElementById("username").value = "Need Enable Cookie";
+                    document.getElementById("password").value = "Need Enable Cookie";
+                }
+                changeType();
+            }
+            var tim = null;
+            var msg = "";
+            function check(){
+                var sel = document.getElementById("select");
+                document.getElementById("check").disabled = true;
+                document.getElementById("check").value = "--";
+                sel.disabled = true;
+                while(sel.hasChildNodes() && sel.childNodes.length > 0) sel.removeChild(sel.firstChild);
+                msg = "Failed = ";
+                client_retry = true;
+                tryConnectFirst();
+                tim = setTimeout(disconnect, 5000);
+            }
+            function onConnected(){
+                clearTimeout(tim);
+                subscribe("0/WHISPERER/+/battery");
+                subscribe("0/WHISPERER/+/speedmode");
+                msg = "Success : number of robots = ";
+                tim = setTimeout(disconnect, 2000);
+            }
+            function subscribeParse(message){
+                var serial = message.destinationName.substr(12);
+                var pos = serial.indexOf("/");
+                if(pos > 0) serial = serial.substr(0, pos);
+                var sel = document.getElementById("select");
+                for(var index = 0; index < sel.childNodes.length; index++){
+                    var opt = sel.childNodes[index];
+                    if(serial == opt.textContent) return;
+                }
+                for(var index = 0; index < sel.childNodes.length; index++){
+                    var opt = sel.childNodes[index];
+                    if(serial < opt.textContent){
+                        var newOpt = document.createElement("option");
+                        newOpt.value = serial;
+                        newOpt.textContent = serial;
+                        sel.insertBefore(newOpt, opt);
+                        sel.options[0].selected = true;
+                        return;
+                    }
+                }
+                var newOpt = document.createElement("option");
+                newOpt.value = serial;
+                newOpt.textContent = serial;
+                sel.appendChild(newOpt);
+                sel.options[0].selected = true;
+            }
+            function disconnect(){
+                var sel = document.getElementById("select");
+                document.getElementById("check").disabled = false;
+                document.getElementById("check").value = "do";
+                sel.disabled = false;
+                unsubscribe("0/WHISPERER/+/battery");
+                unsubscribe("0/WHISPERER/+/speedmode");
+                client_retry = false;
+                if(client != null && client_connected) client.disconnect();
+                document.title = default_title;
+                var cnt = (sel.hasChildNodes() && sel.childNodes.length > 0?sel.childNodes.length:"0");
+                alert(msg + cnt);
+                if(cnt != "0") select();
+            }
+            function select(){
+                var sel = document.getElementById("select");
+                var number = (sel.value.length == 0 || sel.value.substr(0, 5) == "auto:" || sel.value == type_and_serial)?"":("?" + sel.value);
+                var links = document.getElementsByClassName("app");
+                for(var index = 0; index < links.length; index++){
+                    var link = links[index];
+                    var oldHref = link.getAttribute("href");
+                    link.setAttribute("href", (oldHref.indexOf("?") >= 0)?oldHref.replace(/\?.*/, number):(oldHref + number));
+                }
+            }
+            function changeType(){
+                p = document.getElementById("password");
+                if(p.value == "(internal_default)" || p.value == "Need Enable Cookie"){
+                    p.type = "text";
+                    if(p.value == "(internal_default)") defa = true;
+                }else{
+                    p.type = "password";
+                    defa = false;
+                }
+            }
+            function clickType(){
+                if(defa) document.getElementById("password").value="";
+            }
+        </script>
+    </head>
+    <body onload="load();">
+        <h1><b>Application Folder</b></h1>
+        <hr>
+        <a href="readme-check.html">If you can NOT use samples, please check this.</a><br>
+        <a href="readme-original.html">If you use original application, please read this.</a><br>
+        <hr>
+        <div style="font-size:120%;margin-bottom:5px;"><b>[Cookie] MQTT over WebSocket</b></div>
+        <span style="display:inline-block;width:120px;font-size:120%;">- address </span><input type="text" size="15" id="address" style="font-size:120%;"><br>
+        <span style="display:inline-block;width:120px;font-size:120%;">- port </span><input type="text" size="15" id="port" style="font-size:120%;"><br>
+        <span style="display:inline-block;width:120px;font-size:120%;">- username </span><input type="text" size="15" id="username" style="font-size:120%;"><br>
+        <span style="display:inline-block;width:120px;font-size:120%;">- password </span><input type="text" size="15" id="password" style="font-size:120%;" oninput="changeType();" onclick="clickType();changeType();"><br>
+        <input style="height:30px;width:100px;font-size:120%;margin-top:5px;" type="button" id="save" value="save" onclick="saveCookie();loadCookieArea();"> <input style="height:30px;width:100px;font-size:120%;margin-top:5px;" type="button" id="reset" value="reset" onclick="resetCookie();loadCookieArea();"><br>
+        <hr>
+        <div style="font-size:120%;margin-bottom:5px;"><b>Check connection / Select robot</b></div>
+        <input style="height:30px;width:80px;font-size:120%;" type="button" id="check" value="do" onclick="check();"> <select id="select" size="1" style="font-size:120%;width:240px;" onchange="select();"><option value="auto:RMS-10E2-AAS21">auto:RMS-10E2-AAS21</option></select><br>
+        <hr>
+        <h3><b><a class="app" href="../user/">Here is user original application.</a></b></h3>
+        <hr>
+        <h2><b><a class="app" href="app-linetrace-HW.html">Highway-Multi-Button</a></b></h2>
+        <h2><b><a class="app" href="app-linetrace-HW4.html">Highway-4-Button</a></b></h2>
+        <h2><b><a class="app" href="app-linetrace-HW15.html">Highway-15-Button</a></b></h2>
+        <h2><b><a class="app" href="app-memorytrace-MT.html">MemoryTrace-Multi-Route</a></b></h2>
+        <h2><b><a class="app" href="app-memorytrace-MT4.html">MemoryTrace-4-Button</a></b></h2>
+        <h2><b><a class="app" href="app-memorytrace-MT15.html">MemoryTrace-15-Button</a></b></h2>
+        <h2><b><a class="app" href="app-memorytrace-teach.html">MemoryTrace-Memorize</a></b></h2>
+        <h2><b><a class="app" href="app-karugamo.html">Follow-Me</a></b></h2>
+        <h2><b><a class="app" href="app-userInput-stick.html">UserInput-Stick</a></b></h2>
+        <h2><b><a class="app" href="status345.html">Indicator-3-Light</a></b></h2>
+        <h2><b><a class="app" href="ext01.html">Extension-2-IO</a></b></h2>
+        <hr>
+        <h2><b><a class="app" href="check-marker.html">Check-Marker</a></b></h2>
+        <h2><b><a class="app" href="check-io12pin.html">Check-IO12</a></b></h2>
+        <hr>
+        <h2><b><a class="app" href="test-sequence-HW.html">Test-Sequence-Highway</a></b></h2>
+        <h2><b><a class="app" href="test-sequence-MT.html">Test-Sequence-Memorytrace</a></b></h2>
+        <h2><b><a class="app" href="test-sequence-LT.html">Test-Sequence-LineMark</a></b></h2>
+        <h2><b><a class="app" href="test-command.html">Test-Command</a></b></h2>
+        <h2><b><a class="app" href="test-dump.html">Test-Dump</a></b></h2>
+        <hr>
+        <a href="/">Home</a><br>
+        
+        
+    </body>
+</html>

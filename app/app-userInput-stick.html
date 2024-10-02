@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" style="height:100%;margin:0;touch-action:none;">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+        <script type="text/javascript" src="../fixed_info.js"></script>
+        <script type="text/javascript" src="../connection.js"></script>
+        <script type="text/javascript" src="../paho-mqtt-min.js"></script>
+        <script type="text/javascript" src="../client_dne_lib.js"></script>
+        <link rel="stylesheet" href="style.css">
+        <title>RMS-10E2-AAS21</title>
+        <script>
+            function onConnected(){
+                publishCmd(''); //clear alert (SORRY! we changed to '' after that DNE4.7.3.0.0)
+                subscribe("0/WHISPERER/" + type_and_serial + "/speedmode");
+            }
+            function subscribeParse(message){
+                const from_json = JSON.parse(message.payloadString);
+                if(from_json.mode != null){
+                    document.getElementById("m0").style.backgroundColor = (from_json.mode == 0)?"#FFF100":"#FFFFFF";
+                    document.getElementById("m1").style.backgroundColor = (from_json.mode == 1)?"#FFF100":"#FFFFFF";
+                    document.getElementById("m2").style.backgroundColor = (from_json.mode == 2)?"#FFF100":"#FFFFFF";
+                    document.getElementById("m3").style.backgroundColor = (from_json.mode == 3)?"#FFF100":"#FFFFFF";
+                    document.getElementById("m4").style.backgroundColor = (from_json.mode == 4)?"#FFF100":"#FFFFFF";
+                }
+            }
+        </script>
+        <style type="text/css">
+        <!--
+        .stick{
+            position: absolute;
+            left: calc(50% - 80vmin/2);
+            top: calc(60% - 80vmin/2);
+            width: 80vmin;
+            height: 80vmin;
+            border: 2px solid #232323;
+            border-radius: 50%;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color:rgba(0,0,0,0);
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        .stick-init{
+            position: absolute;
+            left: calc(50% - 16vmin/2);
+            top: calc(60% - 16vmin/2);
+            width: 16vmin;
+            height: 16vmin;
+            border: 2px solid #232323;
+            border-radius: 50%;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color:rgba(0,0,0,0);
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        -->
+        </style>
+    </head>
+    <body style="height:100%;margin:0;" onload="tryConnectFirst();">
+        <div id="status" class="area" style="height:8%;font-size:7vmin;">RMS-10E2-AAS21</div>
+        <div class="area" style="height:12%;font-size:6vmin;">
+            <div class="button" style="width: 20%; background-color: rgb(255, 242, 0);" onclick="publishCmd('#speedmode_0');" id="m0"><span class="text">0</span></div>
+            <div class="button" style="width: 20%; background-color: rgb(255, 255, 255);" onclick="publishCmd('#speedmode_1');" id="m1"><span class="text">1</span></div>
+            <div class="button" style="width: 20%; background-color: rgb(255, 255, 255);" onclick="publishCmd('#speedmode_2');" id="m2"><span class="text">2</span></div>
+            <div class="button" style="width: 20%; background-color: rgb(255, 255, 255);" onclick="publishCmd('#speedmode_3');" id="m3"><span class="text">3</span></div>
+            <div class="button" style="width: 20%; background-color: rgb(255, 255, 255);" onclick="publishCmd('#speedmode_4');" id="m4"><span class="text">4</span></div>
+        </div>
+        <canvas id="control" class="stick"></canvas>
+        <canvas id="control_init" class="stick-init"></canvas>
+
+
+        <script>
+        var move = false, v_per = 0, w_per = 0;
+        var control = document.getElementById("control");
+        control.addEventListener("touchstart", touch_monitor);
+        control.addEventListener("touchend", touch_monitor);
+        control.addEventListener("touchcancel", touch_monitor);
+        control.addEventListener("touchmove", touch_monitor);
+        var control_init = document.getElementById("control_init");
+        control_init.addEventListener("touchstart", touch_monitor);
+        control_init.addEventListener("touchend", touch_monitor);
+        control_init.addEventListener("touchcancel", touch_monitor);
+        control_init.addEventListener("touchmove", touch_monitor);
+
+        function reset(){
+            control_init.style.top = (control.getBoundingClientRect().top+control.getBoundingClientRect().height/2 - control_init.getBoundingClientRect().height/2) + 'px';
+            control_init.style.left = (control.getBoundingClientRect().left+control.getBoundingClientRect().width/2 - control_init.getBoundingClientRect().width/2) + 'px';
+            if(move){
+                publishVW_per(0, 0);
+                beep();
+            }
+            move = false;
+        }
+        window.addEventListener("resize", reset);
+        window.addEventListener("orientationchange", reset);
+
+        function touch_monitor(e) {
+            e.preventDefault();
+            control_init.style.backgroundColor = "#FFFFFF";
+            if(move && e.touches.length != 1) reset();
+            if(e.touches.length == 1){
+                var x = e.touches[0].clientX;
+                var y = e.touches[0].clientY;
+                //document.title = x + " " + y;
+                var v2_per = -(y - (control.getBoundingClientRect().top+control.getBoundingClientRect().height/2)) / (control.getBoundingClientRect().height/2);
+                var w2_per = -(x - (control.getBoundingClientRect().left+control.getBoundingClientRect().width/2)) / (control.getBoundingClientRect().width/2);
+                if(v2_per*v2_per + w2_per*w2_per > 1){
+                    var ratio = 1 / Math.sqrt(v2_per*v2_per + w2_per*w2_per);
+                    v2_per = v2_per * ratio;
+                    w2_per = w2_per * ratio;
+                }
+                v_per = v2_per;
+                w_per = w2_per;
+                if(v2_per*v2_per + w2_per*w2_per > 0.8*0.8){
+                    var ratio = 0.8 / Math.sqrt(v2_per*v2_per + w2_per*w2_per);
+                    v2_per = v2_per * ratio;
+                    w2_per = w2_per * ratio;
+                }
+                x = -w2_per * (control.getBoundingClientRect().width/2) + (control.getBoundingClientRect().left+control.getBoundingClientRect().width/2);
+                y = -v2_per * (control.getBoundingClientRect().height/2) + (control.getBoundingClientRect().top+control.getBoundingClientRect().height/2);
+                if(move == false && Math.abs(v_per) < 0.2 && Math.abs(w_per) < 0.2){
+                    move = true;
+                    beep();
+                }
+                if(move){
+                    control_init.style.backgroundColor = "#FFF100";
+                    control_init.style.top = (y - control_init.getBoundingClientRect().height/2) + 'px';
+                    control_init.style.left = (x - control_init.getBoundingClientRect().width/2) + 'px';
+                }
+            }
+        }
+
+        setInterval("send()", 50);
+        function send(){
+            if(move && v_per*v_per + w_per*w_per > 0.1*0.1){
+                console.log(v_per + " " + w_per);
+                publishVW_per(v_per, w_per);
+            }else{
+                publishVW_per(0, 0);
+            }
+        }
+
+        </script>
+    </body>
+</html>

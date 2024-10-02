@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0">
+        <script type="text/javascript" src="fixed_info.js"></script>
+        <title>RMS-10E2-AAS21</title>
+        <script>
+            function load(){
+                document.title = type_and_serial;
+                document.getElementById("tas").innerHTML = type_and_serial;
+                document.getElementById("version").innerHTML = "<b>Version:</b> " + dne_version;
+                document.getElementById("option").innerHTML = "<b>Option (factory default):</b> " + dne_option;
+            }
+        </script>
+    </head>
+    <body onload="load();">
+        <h1 id="tas">RMS-10E2-AAS21</h1>
+        <hr>
+        <h2><b><a href="app/index.html">Application folder</a></b></h2>
+        <h2><b><a href="sys/index.html">System folder</a></b></h2>
+        <hr>
+        <span id="version"><b>Version:</b> DNE4.8.0.4.4</span><br>
+        <span id="option"><b>Option (factory default):</b> P)SSM2-P)MQTT-P)WWW-P)BIAPP-P)NET3-P)DHCPD-F)VR2RRC-F)RRCEIO-F)JINV-T)CARRY-T)CARRY/LT-T)CARRY/MT-V)THOUZER-V)THOUZER/M23-V)THOUZER/S0C-F)VR2RRC/MT-F)RRCEIO/MT-D)U0LDSE310E-V)THOUZER/S0B</span><br>
+        <hr>
+        Doog Inc.
+    
+    
+    </body>
+</html>
